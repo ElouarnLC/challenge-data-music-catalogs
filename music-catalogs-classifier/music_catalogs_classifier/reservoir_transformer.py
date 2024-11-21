@@ -62,6 +62,21 @@ X_moods_train, X_moods_test, y_moods_train, y_moods_test = train_test_split(
 )
 
 # Préparation des données
+X_genres_train = X_genres_train.drop(columns=["ChallengeID"])
+X_instruments_train = X_instruments_train.drop(columns=["ChallengeID"])
+X_moods_train = X_moods_train.drop(columns=["ChallengeID"])
+y_genres_train = y_genres_train.drop(columns=["ChallengeID"])
+y_instruments_train = y_instruments_train.drop(columns=["ChallengeID"])
+y_moods_train = y_moods_train.drop(columns=["ChallengeID"])
+
+X_genres_test = X_genres_test.drop(columns=["ChallengeID"])
+X_instruments_test = X_instruments_test.drop(columns=["ChallengeID"])
+X_moods_test = X_moods_test.drop(columns=["ChallengeID"])
+y_genres_test = y_genres_test.drop(columns=["ChallengeID"])
+y_instruments_test = y_instruments_test.drop(columns=["ChallengeID"])
+y_moods_test = y_moods_test.drop(columns=["ChallengeID"])
+
+
 X_train = np.concatenate([X_genres_train, X_instruments_train, X_moods_train], axis=1)
 X_test = np.concatenate([X_genres_test, X_instruments_test, X_moods_test], axis=1)
 
@@ -102,17 +117,66 @@ model_Genre = ESN(reservoir=reservoir_Genre, readout=readout_Genre, workers=-1)
 model_Instrument = ESN(
     reservoir=reservoir_Instrument, readout=readout_Instrument, workers=-1
 )
-model_Mood = ESN(reservoir=readout_Mood, readout=readout_Mood, workers=-1)
+model_Mood = ESN(reservoir=reservoir_Mood, readout=readout_Mood, workers=-1)
+
+
+# Ensure the input data is in the correct format
+def reshape_input(X):
+    return X.values.reshape(-1, 1, X.shape[1])
+
+
+X_genres_train_reshaped = reshape_input(X_genres_train)
+X_instruments_train_reshaped = reshape_input(X_instruments_train)
+X_moods_train_reshaped = reshape_input(X_moods_train)
+
+y_genres_train_reshaped = reshape_input(y_genres_train)
+y_instruments_train_reshaped = reshape_input(y_instruments_train)
+y_moods_train_reshaped = reshape_input(y_moods_train)
+
+X_genres_test_reshaped = reshape_input(X_genres_test)
+X_instruments_test_reshaped = reshape_input(X_instruments_test)
+X_moods_test_reshaped = reshape_input(X_moods_test)
+
+y_genres_test_reshaped = reshape_input(y_genres_test)
+y_instruments_test_reshaped = reshape_input(y_instruments_test)
+y_moods_test_reshaped = reshape_input(y_moods_test)
+
 
 # Entraîner les réservoirs
-model_Genre.fit(X_genres_train)
-model_Instrument.fit(X_instruments_train)
-model_Mood.fit(X_moods_train)
+# Train the models with one line for single timestep
+model_Genre.fit(X_genres_train_reshaped, y_genres_train_reshaped)
+model_Instrument.fit(X_instruments_train_reshaped, y_instruments_train_reshaped)
+model_Mood.fit(X_moods_train_reshaped, y_moods_train_reshaped)
+
+
+def format_predictions(predictions):
+    # Convert the list to a NumPy array
+    predictions_array = np.array(predictions)
+
+    # Reshape the array to 2-dimensional
+    predictions_reshaped = predictions_array.reshape(-1, predictions_array.shape[-1])
+
+    return predictions_reshaped
+
 
 # Obtenir les sorties des réservoirs
-y_genres_train_pred = model_Genre.run(X_genres_train)
-y_instruments_train_pred = model_Instrument.run(X_instruments_train)
-y_moods_train_pred = model_Mood.run(X_moods_train)
+y_genres_train_pred = model_Genre.run(X_genres_train_reshaped)
+y_instruments_train_pred = model_Instrument.run(X_instruments_train_reshaped)
+y_moods_train_pred = model_Mood.run(X_moods_train_reshaped)
+
+y_genres_test_pred = model_Genre.run(X_genres_test_reshaped)
+y_instruments_test_pred = model_Instrument.run(X_instruments_test_reshaped)
+y_moods_test_pred = model_Mood.run(X_moods_test_reshaped)
+
+# Formater les prédictions
+y_genres_train_pred = format_predictions(y_genres_train_pred)
+y_instruments_train_pred = format_predictions(y_instruments_train_pred)
+y_moods_train_pred = format_predictions(y_moods_train_pred)
+
+y_genres_test_pred = format_predictions(y_genres_test_pred)
+y_instruments_test_pred = format_predictions(y_instruments_test_pred)
+y_moods_test_pred = format_predictions(y_moods_test_pred)
+
 
 # Combine les sorties des réservoirs
 X_train_reservoirs = np.concatenate(
@@ -120,9 +184,9 @@ X_train_reservoirs = np.concatenate(
 )
 X_test_reservoirs = np.concatenate(
     [
-        model_Genre.run(X_genres_test),
-        model_Instrument.run(X_instruments_test),
-        model_Mood.run(X_moods_test),
+        y_genres_test_pred,
+        y_instruments_test_pred,
+        y_moods_test_pred,
     ],
     axis=1,
 )
