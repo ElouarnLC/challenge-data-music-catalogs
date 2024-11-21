@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from reservoirpy.nodes import Reservoir, Ridge
+from reservoirpy.nodes import Reservoir, Ridge, ESN
 from sklearn.model_selection import train_test_split
 import numpy as np
+import pandas as pd
 
 # Configuration
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -18,15 +19,30 @@ EPOCHS = 10
 
 # Simulation des données d'entrée
 def load_data():
+    partOfData = 1
     # Simule les données d'input (genres, instruments, moods)
-    X_genres = np.random.rand(1000, 90)
-    X_instruments = np.random.rand(1000, 112)
-    X_moods = np.random.rand(1000, 46)
+    # X_genres = np.random.rand(1000, 90)
+    # X_instruments = np.random.rand(1000, 112)
+    # X_moods = np.random.rand(1000, 46)
+    X_genres = pd.read_csv("../data/train/input_genres_tags_data.csv")
+    X_instruments = pd.read_csv("../data/train/input_instruments_tags_data.csv")
+    X_moods = pd.read_csv("../data/train/input_moods_tags_data.csv")
 
     # Simule les données de sortie (étiquettes binaires pour chaque catégorie)
-    y_genres = np.random.randint(0, 2, (1000, 90))
-    y_instruments = np.random.randint(0, 2, (1000, 112))
-    y_moods = np.random.randint(0, 2, (1000, 46))
+    # y_genres = np.random.randint(0, 2, (1000, 90))
+    # y_instruments = np.random.randint(0, 2, (1000, 112))
+    # y_moods = np.random.randint(0, 2, (1000, 46))
+    y_genres = pd.read_csv("../data/train/output_genres_tags_data.csv")
+    y_instruments = pd.read_csv("../data/train/output_instruments_tags_data.csv")
+    y_moods = pd.read_csv("../data/train/output_moods_tags_data.csv")
+
+    # On garde seulement une partie des données pour la simulation
+    X_genres = X_genres[: int(partOfData * len(X_genres))]
+    X_instruments = X_instruments[: int(partOfData * len(X_instruments))]
+    X_moods = X_moods[: int(partOfData * len(X_moods))]
+    y_genres = y_genres[: int(partOfData * len(y_genres))]
+    y_instruments = y_instruments[: int(partOfData * len(y_instruments))]
+    y_moods = y_moods[: int(partOfData * len(y_moods))]
 
     return (X_genres, X_instruments, X_moods), (y_genres, y_instruments, y_moods)
 
@@ -61,15 +77,15 @@ y_test_tensor = torch.tensor(y_test, dtype=torch.float32).to(DEVICE)
 
 # Initialisation des réservoirs (genre, instrument, mood)
 reservoir_Genre = Reservoir(
-    units=150,
-    sr=0.9,  # Spectral radius
+    units=100,
+    sr=0,  # Spectral radius
     lr=1,  # Leak rate
     input_scaling=1.0,
 )
 
-reservoir_Instrument = Reservoir(units=150, sr=0.9, lr=1, input_scaling=1.0)
+reservoir_Instrument = Reservoir(units=100, sr=0, lr=1, input_scaling=1.0)
 
-reservoir_Mood = Reservoir(units=150, sr=0.9, lr=1, input_scaling=1.0)
+reservoir_Mood = Reservoir(units=100, sr=0, lr=1, input_scaling=1.0)
 
 # Readout pour chaque réservoir
 readout_Genre = Ridge(ridge=1e-4)
@@ -77,9 +93,16 @@ readout_Instrument = Ridge(ridge=1e-4)
 readout_Mood = Ridge(ridge=1e-4)
 
 # Création des modèles
-model_Genre = reservoir_Genre >> readout_Genre
-model_Instrument = reservoir_Instrument >> readout_Instrument
-model_Mood = reservoir_Mood >> readout_Mood
+# model_Genre = reservoir_Genre >> readout_Genre
+# model_Instrument = reservoir_Instrument >> readout_Instrument
+# model_Mood = reservoir_Mood >> readout_Mood
+
+# Création des modèles avec ESN (Echo State Network)
+model_Genre = ESN(reservoir=reservoir_Genre, readout=readout_Genre, workers=-1)
+model_Instrument = ESN(
+    reservoir=reservoir_Instrument, readout=readout_Instrument, workers=-1
+)
+model_Mood = ESN(reservoir=readout_Mood, readout=readout_Mood, workers=-1)
 
 # Entraîner les réservoirs
 model_Genre.fit(X_genres_train)
