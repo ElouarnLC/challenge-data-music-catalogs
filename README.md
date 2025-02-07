@@ -1,8 +1,4 @@
 
-Here's your corrected and completed README:
-
-----------
-
 # Projet IA - Challenge Data
 
 ## Interpreting Neural Network Predictions for Multi-Label Classification of a Music Catalog
