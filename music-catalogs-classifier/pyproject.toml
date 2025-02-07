@@ -15,7 +15,6 @@ scikit-learn = "^1.5.2"
 seaborn = "^0.13.2"
 torch = "^2.5.1"
 torchviz = "^0.0.3"
-streamlit = "^1.41.1"
 optuna = "^4.2.0"
 optuna-dashboard = "^0.17.0"
 
